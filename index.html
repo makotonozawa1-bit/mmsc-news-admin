@@ -5,143 +5,330 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MMSCニュース 配信先管理</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --primary:   #1a3a5c;
+      --accent:    #2e7bcf;
+      --accent-lt: #e8f2fc;
+      --danger:    #c0392b;
+      --danger-lt: #fdecea;
+      --success:   #1e7e34;
+      --success-lt:#e8f5e9;
+      --warn-lt:   #fff8e1;
+      --warn:      #f57f17;
+      --surface:   #ffffff;
+      --bg:        #f0f4f8;
+      --border:    #dde4ec;
+      --text:      #1a2633;
+      --muted:     #6b7a8d;
+      --radius:    14px;
+      --shadow:    0 4px 20px rgba(26,58,92,.10);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
-      background: #f5f5f5;
+      background: var(--bg);
       min-height: 100vh;
-      padding: 24px 16px;
+      color: var(--text);
     }
-    .container { max-width: 540px; margin: 0 auto; }
-    h1 {
-      font-size: 1.2rem;
-      color: #1a1a2e;
-      margin-bottom: 24px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid #4a6fa5;
+
+    /* ── ヘッダー ── */
+    header {
+      background: var(--primary);
+      color: #fff;
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 2px 10px rgba(0,0,0,.2);
     }
-    h1 span { font-size: 0.85rem; color: #666; font-weight: normal; margin-left: 8px; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: var(--accent); display: flex; align-items: center;
+      justify-content: center; font-size: 1rem;
+    }
+    .header-title { font-size: 1rem; font-weight: 600; letter-spacing: .03em; }
+    .header-sub   { font-size: .72rem; opacity: .7; margin-top: 1px; }
+    .logout-btn {
+      font-size: .75rem; color: rgba(255,255,255,.65);
+      background: none; border: 1px solid rgba(255,255,255,.25);
+      border-radius: 6px; padding: 5px 10px; cursor: pointer;
+      transition: all .2s;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+
+    /* ── メインコンテンツ ── */
+    main { max-width: 560px; margin: 0 auto; padding: 24px 16px 40px; }
+
+    /* ── カード ── */
     .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 20px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
       margin-bottom: 16px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
     }
-    .card h2 { font-size: 0.9rem; color: #666; margin-bottom: 14px; }
+    .card-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-header .icon {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: var(--accent-lt); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem; flex-shrink: 0;
+    }
+    .card-title { font-size: .95rem; font-weight: 600; }
+    .card-count {
+      margin-left: auto; font-size: .75rem;
+      background: var(--accent-lt); color: var(--accent);
+      padding: 2px 8px; border-radius: 20px; font-weight: 600;
+    }
+    .card-body { padding: 0 20px; }
 
-    /* 設定フォーム */
-    .setup-field { margin-bottom: 12px; }
-    .setup-field label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; }
-    .setup-field input {
-      width: 100%; padding: 10px 12px;
-      border: 1px solid #ddd; border-radius: 8px;
-      font-size: 0.9rem; outline: none;
-    }
-    .setup-field input:focus { border-color: #4a6fa5; }
-    .setup-note { font-size: 0.75rem; color: #888; margin-top: 8px; line-height: 1.5; }
-
-    /* ボタン */
-    .btn {
-      padding: 10px 20px; border: none; border-radius: 8px;
-      font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s;
-    }
-    .btn:active { opacity: 0.7; }
-    .btn-primary { background: #4a6fa5; color: #fff; width: 100%; margin-top: 4px; }
-    .btn-danger {
-      background: none; border: none; color: #e74c3c;
-      font-size: 1.2rem; cursor: pointer; padding: 4px 8px; line-height: 1;
-    }
-
-    /* 配信先リスト */
+    /* ── 配信先リスト ── */
     .recipient-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 12px 0; border-bottom: 1px solid #f0f0f0;
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+      animation: fadeIn .25s ease;
     }
     .recipient-item:last-child { border-bottom: none; }
-    .recipient-email { font-size: 0.9rem; color: #333; word-break: break-all; flex: 1; }
-    .empty-msg { font-size: 0.85rem; color: #aaa; padding: 12px 0; }
-
-    /* 追加フォーム */
-    .add-row { display: flex; gap: 8px; margin-top: 4px; }
-    .add-row input {
-      flex: 1; padding: 10px 12px;
-      border: 1px solid #ddd; border-radius: 8px;
-      font-size: 0.9rem; outline: none;
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; } }
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--accent-lt); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .85rem; font-weight: 700; flex-shrink: 0;
     }
-    .add-row input:focus { border-color: #4a6fa5; }
-    .add-row .btn { white-space: nowrap; }
-
-    /* ステータス */
-    .status {
-      padding: 10px 14px; border-radius: 8px;
-      font-size: 0.85rem; margin-bottom: 12px; display: none;
+    .email-text {
+      flex: 1; font-size: .88rem; color: var(--text);
+      word-break: break-all; line-height: 1.4;
     }
-    .status.ok { background: #e8f5e9; color: #2e7d32; display: block; }
-    .status.err { background: #fdecea; color: #c62828; display: block; }
-    .status.loading { background: #e3f2fd; color: #1565c0; display: block; }
+    .del-btn {
+      width: 30px; height: 30px; border-radius: 8px;
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .8rem; flex-shrink: 0; transition: all .15s;
+    }
+    .del-btn:hover { background: var(--danger-lt); border-color: var(--danger); color: var(--danger); }
+    .empty-state {
+      padding: 28px 0; text-align: center;
+      color: var(--muted); font-size: .85rem;
+    }
+    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; }
 
-    /* ログアウト */
-    .logout-link {
-      font-size: 0.75rem; color: #aaa; cursor: pointer;
-      text-decoration: underline; display: block; text-align: right; margin-top: 8px;
+    /* ── 追加フォーム ── */
+    .add-form { padding: 16px 20px; }
+    .input-row { display: flex; gap: 8px; }
+    .email-input {
+      flex: 1; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: .9rem; color: var(--text); outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .email-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46,123,207,.12);
+    }
+    .email-input::placeholder { color: #b0bec5; }
+    .add-btn {
+      padding: 11px 18px; border: none; border-radius: 10px;
+      background: var(--accent); color: #fff;
+      font-size: .9rem; font-weight: 600; cursor: pointer;
+      white-space: nowrap; transition: all .15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .add-btn:hover  { background: #1a6abf; }
+    .add-btn:active { transform: scale(.97); }
+
+    /* ── ステータストースト ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 12px 20px; border-radius: 10px;
+      font-size: .88rem; font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,.15);
+      white-space: nowrap; z-index: 100;
+      animation: toastIn .25s ease;
+      pointer-events: none;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+    .toast.ok  { background: var(--success); color: #fff; }
+    .toast.err { background: var(--danger);  color: #fff; }
+    .toast.loading { background: var(--primary); color: #fff; }
+
+    /* ── 認証画面 ── */
+    .auth-wrap {
+      min-height: 100vh; display: flex; align-items: center;
+      justify-content: center; padding: 24px;
+    }
+    .auth-card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 32px 28px;
+      width: 100%; max-width: 420px;
+    }
+    .auth-logo {
+      width: 52px; height: 52px; border-radius: 14px;
+      background: var(--primary); color: #fff;
+      font-size: 1.4rem; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 20px;
+    }
+    .auth-title {
+      text-align: center; font-size: 1.15rem;
+      font-weight: 700; margin-bottom: 6px; color: var(--primary);
+    }
+    .auth-sub {
+      text-align: center; font-size: .82rem;
+      color: var(--muted); margin-bottom: 28px; line-height: 1.6;
+    }
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block; font-size: .78rem;
+      font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: .92rem; outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(46,123,207,.12);
+    }
+    .auth-note {
+      font-size: .75rem; color: var(--muted); line-height: 1.6;
+      background: var(--warn-lt); border-radius: 8px;
+      padding: 10px 12px; margin-bottom: 20px;
+    }
+    .auth-note strong { color: var(--warn); }
+    .submit-btn {
+      width: 100%; padding: 13px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 600;
+      cursor: pointer; transition: background .15s;
+    }
+    .submit-btn:hover  { background: #142d48; }
+    .submit-btn:active { transform: scale(.99); }
+    .auth-err {
+      font-size: .82rem; color: var(--danger);
+      background: var(--danger-lt); border-radius: 8px;
+      padding: 9px 12px; margin-top: 12px; display: none;
     }
 
-    /* hidden */
+    /* ── スピナー ── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.35);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .hidden { display: none !important; }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>📧 MMSCニュース<span>配信先管理</span></h1>
 
-  <div id="status" class="status"></div>
-
-  <!-- 認証画面 -->
-  <div id="setup-view" class="card hidden">
-    <h2>🔑 GitHub アクセストークンを入力</h2>
-    <div class="setup-field">
-      <label>Personal Access Token（repo スコープ必須）</label>
-      <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx">
-    </div>
-    <div class="setup-note">
-      トークンはこのデバイスのブラウザーにのみ保存されます。<br>
-      発行先：GitHub → Settings → Developer settings → Personal access tokens
-    </div>
-    <button class="btn btn-primary" onclick="saveToken()">保存して続ける</button>
-  </div>
-
-  <!-- 管理画面 -->
-  <div id="main-view" class="hidden">
-    <div class="card">
-      <h2>📋 現在の配信先</h2>
-      <div id="recipient-list"><p class="empty-msg">読み込み中...</p></div>
-    </div>
-    <div class="card">
-      <h2>➕ 配信先を追加</h2>
-      <div class="add-row">
-        <input type="email" id="new-email" placeholder="example@gmail.com">
-        <button class="btn btn-primary" style="width:auto" onclick="addRecipient()">追加</button>
+<!-- ── 認証画面 ── -->
+<div id="auth-view" class="hidden">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">📧</div>
+      <p class="auth-title">MMSCニュース</p>
+      <p class="auth-sub">配信先管理システム<br>GitHub Personal Access Token でログイン</p>
+      <div class="field">
+        <label>Access Token</label>
+        <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+               onkeydown="if(event.key==='Enter')saveToken()">
       </div>
+      <div class="auth-note">
+        <strong>⚠ このデバイスにのみ保存されます。</strong><br>
+        トークンは外部サーバーへ送信されません。ブラウザーの localStorage に暗号化せず保存されるため、共有端末ではご注意ください。
+      </div>
+      <button class="submit-btn" onclick="saveToken()">ログイン</button>
+      <div id="auth-err" class="auth-err"></div>
     </div>
-    <a class="logout-link" onclick="logout()">トークンを削除してログアウト</a>
   </div>
 </div>
 
+<!-- ── 管理画面 ── -->
+<div id="main-view" class="hidden">
+  <header>
+    <div class="header-left">
+      <div class="logo-icon">📧</div>
+      <div>
+        <div class="header-title">MMSCニュース</div>
+        <div class="header-sub">配信先管理</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="logout()">ログアウト</button>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="card-header">
+        <div class="icon">📋</div>
+        <span class="card-title">配信先一覧</span>
+        <span class="card-count" id="count">0 件</span>
+      </div>
+      <div class="card-body">
+        <div id="recipient-list">
+          <div class="empty-state">
+            <div class="spinner" style="border-color:rgba(0,0,0,.1);border-top-color:var(--accent);margin:0 auto 8px;"></div>
+            読み込み中...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="icon">➕</div>
+        <span class="card-title">配信先を追加</span>
+      </div>
+      <div class="add-form">
+        <div class="input-row">
+          <input type="email" id="new-email" class="email-input"
+                 placeholder="example@gmail.com"
+                 onkeydown="if(event.key==='Enter')addRecipient()">
+          <button class="add-btn" onclick="addRecipient()">
+            <span id="add-label">追加</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
 <script>
-const REPO  = "makotonozawa1-bit/mmsc-news";
-const FILE  = "recipients.json";
-const API   = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
+const REPO = "makotonozawa1-bit/mmsc-news";
+const FILE = "recipients.json";
+const API  = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
 
-function getToken() { return localStorage.getItem("mmsc_pat") || ""; }
+/* ── トークン管理 ── */
+const getToken = () => localStorage.getItem("mmsc_pat") || "";
 
-function showStatus(msg, type) {
-  const el = document.getElementById("status");
+/* ── トースト ── */
+let _toastTimer;
+function toast(msg, type = "ok") {
+  const el = document.getElementById("toast");
   el.textContent = msg;
-  el.className = "status " + type;
-  if (type === "ok") setTimeout(() => el.className = "status", 3000);
+  el.className = `toast ${type}`;
+  el.classList.remove("hidden");
+  clearTimeout(_toastTimer);
+  if (type !== "loading") {
+    _toastTimer = setTimeout(() => el.classList.add("hidden"), 3000);
+  }
 }
 
+/* ── GitHub API ── */
 async function ghApi(method, url, body) {
   const res = await fetch(url, {
     method,
@@ -152,112 +339,122 @@ async function ghApi(method, url, body) {
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `API エラー (${res.status})`);
+  }
   const text = await res.text();
   return text ? JSON.parse(text) : {};
 }
 
-async function loadRecipients() {
-  try {
-    const data = await ghApi("GET", API);
-    const json = JSON.parse(atob(data.content.replace(/\n/g, "")));
-    return { recipients: json.recipients, sha: data.sha };
-  } catch (e) {
-    throw new Error("配信先の読み込みに失敗しました: " + e.message);
-  }
+/* ── 配信先の読み書き ── */
+async function load() {
+  const data = await ghApi("GET", API);
+  const json = JSON.parse(atob(data.content.replace(/\n/g, "")));
+  return { recipients: json.recipients || [], sha: data.sha };
 }
-
-async function saveRecipients(recipients, sha) {
+async function save(recipients, sha) {
   const content = btoa(unescape(encodeURIComponent(
     JSON.stringify({ recipients }, null, 2) + "\n"
   )));
-  await ghApi("PUT", API, {
-    message: "配信先を更新",
-    content,
-    sha,
-  });
+  return ghApi("PUT", API, { message: "配信先を更新", content, sha });
 }
 
-async function renderList() {
-  showStatus("読み込み中...", "loading");
+/* ── 一覧の描画 ── */
+async function render() {
+  toast("読み込み中...", "loading");
   try {
-    const { recipients } = await loadRecipients();
-    const el = document.getElementById("recipient-list");
+    const { recipients } = await load();
+    const list = document.getElementById("recipient-list");
+    document.getElementById("count").textContent = `${recipients.length} 件`;
     if (recipients.length === 0) {
-      el.innerHTML = '<p class="empty-msg">配信先が登録されていません</p>';
+      list.innerHTML = `<div class="empty-state">
+        <div class="empty-icon">📭</div>
+        配信先が登録されていません
+      </div>`;
     } else {
-      el.innerHTML = recipients.map((r, i) => `
-        <div class="recipient-item">
-          <span class="recipient-email">${r}</span>
-          <button class="btn-danger" onclick="removeRecipient(${i})" title="削除">✕</button>
+      list.innerHTML = recipients.map((r, i) => `
+        <div class="recipient-item" id="item-${i}">
+          <div class="avatar">${r[0].toUpperCase()}</div>
+          <span class="email-text">${r}</span>
+          <button class="del-btn" onclick="remove(${i})" title="削除">✕</button>
         </div>`).join("");
     }
-    document.getElementById("status").className = "status";
+    document.getElementById("toast").classList.add("hidden");
   } catch (e) {
-    showStatus(e.message, "err");
+    toast("読み込み失敗: " + e.message, "err");
   }
 }
 
+/* ── 追加 ── */
 async function addRecipient() {
   const input = document.getElementById("new-email");
   const email = input.value.trim();
-  if (!email || !email.includes("@")) {
-    showStatus("正しいメールアドレスを入力してください", "err"); return;
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    toast("正しいメールアドレスを入力してください", "err"); return;
   }
-  showStatus("追加中...", "loading");
+  document.getElementById("add-label").innerHTML = '<span class="spinner"></span>';
   try {
-    const { recipients, sha } = await loadRecipients();
-    if (recipients.includes(email)) {
-      showStatus("すでに登録されています", "err"); return;
-    }
-    await saveRecipients([...recipients, email], sha);
+    const { recipients, sha } = await load();
+    if (recipients.includes(email)) { toast("すでに登録されています", "err"); return; }
+    await save([...recipients, email], sha);
     input.value = "";
-    showStatus(`${email} を追加しました`, "ok");
-    await renderList();
+    toast(`${email} を追加しました`, "ok");
+    await render();
   } catch (e) {
-    showStatus("追加に失敗しました: " + e.message, "err");
+    toast("追加失敗: " + e.message, "err");
+  } finally {
+    document.getElementById("add-label").textContent = "追加";
   }
 }
 
-async function removeRecipient(index) {
-  if (!confirm("この配信先を削除しますか？")) return;
-  showStatus("削除中...", "loading");
+/* ── 削除 ── */
+async function remove(index) {
+  const item = document.getElementById(`item-${index}`);
+  const email = item.querySelector(".email-text").textContent;
+  if (!confirm(`${email} を削除しますか？`)) return;
+  toast("削除中...", "loading");
   try {
-    const { recipients, sha } = await loadRecipients();
-    const removed = recipients[index];
-    await saveRecipients(recipients.filter((_, i) => i !== index), sha);
-    showStatus(`${removed} を削除しました`, "ok");
-    await renderList();
+    const { recipients, sha } = await load();
+    await save(recipients.filter((_, i) => i !== index), sha);
+    toast(`${email} を削除しました`, "ok");
+    await render();
   } catch (e) {
-    showStatus("削除に失敗しました: " + e.message, "err");
+    toast("削除失敗: " + e.message, "err");
   }
 }
 
+/* ── 認証 ── */
 function saveToken() {
   const pat = document.getElementById("pat-input").value.trim();
+  const err = document.getElementById("auth-err");
   if (!pat.startsWith("ghp_") && !pat.startsWith("github_pat_")) {
-    showStatus("正しいトークンを入力してください（ghp_ または github_pat_ で始まります）", "err");
-    return;
+    err.textContent = "正しいトークンを入力してください（ghp_ または github_pat_ で始まります）";
+    err.style.display = "block"; return;
   }
   localStorage.setItem("mmsc_pat", pat);
-  document.getElementById("setup-view").classList.add("hidden");
+  document.getElementById("auth-view").classList.add("hidden");
   document.getElementById("main-view").classList.remove("hidden");
-  renderList();
+  render();
 }
-
 function logout() {
-  if (!confirm("トークンを削除してログアウトしますか？")) return;
+  if (!confirm("ログアウトしますか？")) return;
   localStorage.removeItem("mmsc_pat");
   location.reload();
 }
 
-// 初期表示
+/* ── 初期表示 ── */
+const toast_el = document.createElement("div");
+toast_el.id = "toast";
+toast_el.className = "toast hidden";
+document.body.appendChild(toast_el);
+
 window.onload = () => {
   if (getToken()) {
     document.getElementById("main-view").classList.remove("hidden");
-    renderList();
+    render();
   } else {
-    document.getElementById("setup-view").classList.remove("hidden");
+    document.getElementById("auth-view").classList.remove("hidden");
   }
 };
 </script>
