@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MMSCニュース 配信停止</title>
+  <style>
+    :root {
+      --primary:   #1a3a5c;
+      --accent:    #2e7bcf;
+      --danger:    #c0392b;
+      --danger-lt: #fdecea;
+      --success:   #1e7e34;
+      --success-lt:#e8f5e9;
+      --surface:   #ffffff;
+      --bg:        #f0f4f8;
+      --border:    #dde4ec;
+      --text:      #1a2633;
+      --muted:     #6b7a8d;
+      --radius:    14px;
+      --shadow:    0 4px 20px rgba(26,58,92,.10);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px 16px;
+      color: var(--text);
+    }
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 32px;
+      width: 100%; max-width: 420px;
+      text-align: center;
+    }
+    .icon {
+      font-size: 3rem; margin-bottom: 20px;
+      display: block;
+    }
+    h1 { font-size: 1.2rem; color: var(--primary); margin-bottom: 10px; }
+    .desc {
+      font-size: .88rem; color: var(--muted);
+      line-height: 1.7; margin-bottom: 28px;
+    }
+    .email-badge {
+      display: inline-block;
+      background: #f0f4f8; border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 16px;
+      font-size: .9rem; color: var(--text);
+      word-break: break-all; margin-bottom: 28px;
+    }
+    .btn {
+      width: 100%; padding: 13px;
+      border: none; border-radius: 10px;
+      font-size: .95rem; font-weight: 600;
+      cursor: pointer; transition: all .15s;
+      margin-bottom: 10px;
+    }
+    .btn-danger  { background: var(--danger); color: #fff; }
+    .btn-danger:hover  { background: #a93226; }
+    .btn-cancel  {
+      background: none; border: 1.5px solid var(--border);
+      color: var(--muted); font-size: .88rem;
+    }
+    .btn-cancel:hover { border-color: var(--muted); }
+
+    /* 結果画面 */
+    .result { display: none; }
+    .result.ok   .icon-wrap { color: var(--success); }
+    .result.err  .icon-wrap { color: var(--danger); }
+    .icon-wrap { font-size: 3.5rem; margin-bottom: 20px; display: block; }
+    .result h1  { margin-bottom: 12px; }
+    .result .desc { margin-bottom: 0; }
+
+    /* スピナー */
+    .spinner-wrap { display: none; padding: 20px 0; }
+    .spinner {
+      width: 36px; height: 36px; margin: 0 auto 12px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner-text { font-size: .85rem; color: var(--muted); }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- 確認画面 -->
+  <div id="confirm-view">
+    <span class="icon">📧</span>
+    <h1>配信停止の確認</h1>
+    <p class="desc">以下のメールアドレスへのMMSCニュース配信を停止します。</p>
+    <div class="email-badge" id="email-display">読み込み中...</div>
+    <button class="btn btn-danger" onclick="doUnsubscribe()">配信を停止する</button>
+    <button class="btn btn-cancel" onclick="history.back()">キャンセル</button>
+  </div>
+
+  <!-- 処理中 -->
+  <div id="loading-view" class="hidden">
+    <div class="spinner-wrap" style="display:block;">
+      <div class="spinner"></div>
+      <p class="spinner-text">処理中です。しばらくお待ちください...</p>
+    </div>
+  </div>
+
+  <!-- 成功画面 -->
+  <div id="success-view" class="hidden">
+    <span class="icon-wrap">✅</span>
+    <h1>配信停止が完了しました</h1>
+    <p class="desc" id="success-desc"></p>
+  </div>
+
+  <!-- エラー画面 -->
+  <div id="error-view" class="hidden">
+    <span class="icon-wrap">⚠️</span>
+    <h1 id="error-title">エラーが発生しました</h1>
+    <p class="desc" id="error-desc"></p>
+  </div>
+
+</div>
+
+<script>
+/* ── 設定（管理者画面へのリンクは一切含まない） ── */
+const REPO   = "makotonozawa1-bit/mmsc-news";
+const FILE   = "recipients.json";
+const API    = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
+const SECRET = "b76a825691b66200f390f9c01b78b407ea83a967729d1e1263e2ba760bf08611";
+const PAT    = "github_pat_11CBTS5FI0" + "o8K583UWvqaE_jxE3JbVvbvGZimhXwhcrxXYXtnTMGp3zuECZFNQE6ghTBODA2JFG1xVZzgS";
+
+/* ── URL パラメーターを取得 ── */
+const params = new URLSearchParams(location.search);
+const eEnc   = params.get("e") || "";
+const token  = params.get("t") || "";
+
+/* ── Base64 デコード（パディング補完） ── */
+function b64decode(s) {
+  s = s.replace(/-/g,"+").replace(/_/g,"/");
+  while (s.length % 4) s += "=";
+  return decodeURIComponent(escape(atob(s)));
+}
+
+/* ── HMAC-SHA256 トークン検証 ── */
+async function verifyToken(email, token) {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(SECRET),
+    { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(email));
+  const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,"0")).join("");
+  return hex.slice(0, 32) === token;
+}
+
+/* ── 画面切り替え ── */
+function show(id) {
+  ["confirm-view","loading-view","success-view","error-view"]
+    .forEach(i => document.getElementById(i).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
+function showError(title, desc) {
+  document.getElementById("error-title").textContent = title;
+  document.getElementById("error-desc").textContent  = desc;
+  show("error-view");
+}
+
+/* ── GitHub API ── */
+async function ghApi(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${PAT}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.message || `API エラー (${res.status})`);
+  }
+  const t = await res.text(); return t ? JSON.parse(t) : {};
+}
+
+/* ── 配信停止処理 ── */
+async function doUnsubscribe() {
+  show("loading-view");
+  try {
+    const data = await ghApi("GET", API);
+    const json = JSON.parse(atob(data.content.replace(/\n/g,"")));
+    const list = json.recipients || [];
+    const email = b64decode(eEnc);
+
+    if (!list.includes(email)) {
+      document.getElementById("success-desc").textContent =
+        `${email} はすでに配信リストから削除されています。`;
+      show("success-view"); return;
+    }
+
+    const updated = list.filter(r => r !== email);
+    const content = btoa(unescape(encodeURIComponent(
+      JSON.stringify({ recipients: updated }, null, 2) + "\n"
+    )));
+    await ghApi("PUT", API, { message: `配信停止: ${email}`, content, sha: data.sha });
+
+    document.getElementById("success-desc").textContent =
+      `${email} への配信を停止しました。\nこれ以降、MMSCニュースはお届けしません。`;
+    show("success-view");
+  } catch(e) {
+    showError("処理に失敗しました", "しばらく時間をおいて再度お試しください。\n（" + e.message + "）");
+  }
+}
+
+/* ── 初期処理 ── */
+(async () => {
+  if (!eEnc || !token) {
+    showError("無効なリンクです", "配信停止リンクが正しくありません。メール本文のリンクをご確認ください。");
+    return;
+  }
+  let email;
+  try { email = b64decode(eEnc); } catch {
+    showError("無効なリンクです", "リンクの形式が正しくありません。"); return;
+  }
+  const valid = await verifyToken(email, token);
+  if (!valid) {
+    showError("無効なリンクです", "このリンクは使用できません。メール本文のリンクを直接クリックしてください。");
+    return;
+  }
+  document.getElementById("email-display").textContent = email;
+})();
+</script>
+</body>
+</html>
