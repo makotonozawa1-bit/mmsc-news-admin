@@ -101,7 +101,7 @@
     <p class="desc">以下のメールアドレスへのMMSCニュース配信を停止します。</p>
     <div class="email-badge" id="email-display">読み込み中...</div>
     <button class="btn btn-danger" onclick="doUnsubscribe()">配信を停止する</button>
-    <button class="btn btn-cancel" onclick="history.back()">キャンセル</button>
+    <button class="btn btn-cancel" onclick="closeWindow()">キャンセル</button>
   </div>
 
   <!-- 処理中 -->
@@ -157,6 +157,15 @@ async function verifyToken(email, token) {
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(email));
   const hex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,"0")).join("");
   return hex.slice(0, 32) === token;
+}
+
+/* ── ウィンドウを閉じる ── */
+function closeWindow() {
+  window.close();
+  // ブラウザーのセキュリティ制限で閉じられない場合はメッセージを表示
+  setTimeout(() => {
+    alert("このタブを閉じてください。");
+  }, 300);
 }
 
 /* ── 画面切り替え ── */
