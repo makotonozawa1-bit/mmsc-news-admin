@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MMSCニュース 配信先管理</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Meiryo", sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+    .container { max-width: 540px; margin: 0 auto; }
+    h1 {
+      font-size: 1.2rem;
+      color: #1a1a2e;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #4a6fa5;
+    }
+    h1 span { font-size: 0.85rem; color: #666; font-weight: normal; margin-left: 8px; }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .card h2 { font-size: 0.9rem; color: #666; margin-bottom: 14px; }
+
+    /* 設定フォーム */
+    .setup-field { margin-bottom: 12px; }
+    .setup-field label { display: block; font-size: 0.8rem; color: #555; margin-bottom: 4px; }
+    .setup-field input {
+      width: 100%; padding: 10px 12px;
+      border: 1px solid #ddd; border-radius: 8px;
+      font-size: 0.9rem; outline: none;
+    }
+    .setup-field input:focus { border-color: #4a6fa5; }
+    .setup-note { font-size: 0.75rem; color: #888; margin-top: 8px; line-height: 1.5; }
+
+    /* ボタン */
+    .btn {
+      padding: 10px 20px; border: none; border-radius: 8px;
+      font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-primary { background: #4a6fa5; color: #fff; width: 100%; margin-top: 4px; }
+    .btn-danger {
+      background: none; border: none; color: #e74c3c;
+      font-size: 1.2rem; cursor: pointer; padding: 4px 8px; line-height: 1;
+    }
+
+    /* 配信先リスト */
+    .recipient-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid #f0f0f0;
+    }
+    .recipient-item:last-child { border-bottom: none; }
+    .recipient-email { font-size: 0.9rem; color: #333; word-break: break-all; flex: 1; }
+    .empty-msg { font-size: 0.85rem; color: #aaa; padding: 12px 0; }
+
+    /* 追加フォーム */
+    .add-row { display: flex; gap: 8px; margin-top: 4px; }
+    .add-row input {
+      flex: 1; padding: 10px 12px;
+      border: 1px solid #ddd; border-radius: 8px;
+      font-size: 0.9rem; outline: none;
+    }
+    .add-row input:focus { border-color: #4a6fa5; }
+    .add-row .btn { white-space: nowrap; }
+
+    /* ステータス */
+    .status {
+      padding: 10px 14px; border-radius: 8px;
+      font-size: 0.85rem; margin-bottom: 12px; display: none;
+    }
+    .status.ok { background: #e8f5e9; color: #2e7d32; display: block; }
+    .status.err { background: #fdecea; color: #c62828; display: block; }
+    .status.loading { background: #e3f2fd; color: #1565c0; display: block; }
+
+    /* ログアウト */
+    .logout-link {
+      font-size: 0.75rem; color: #aaa; cursor: pointer;
+      text-decoration: underline; display: block; text-align: right; margin-top: 8px;
+    }
+
+    /* hidden */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>📧 MMSCニュース<span>配信先管理</span></h1>
+
+  <div id="status" class="status"></div>
+
+  <!-- 認証画面 -->
+  <div id="setup-view" class="card hidden">
+    <h2>🔑 GitHub アクセストークンを入力</h2>
+    <div class="setup-field">
+      <label>Personal Access Token（repo スコープ必須）</label>
+      <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx">
+    </div>
+    <div class="setup-note">
+      トークンはこのデバイスのブラウザーにのみ保存されます。<br>
+      発行先：GitHub → Settings → Developer settings → Personal access tokens
+    </div>
+    <button class="btn btn-primary" onclick="saveToken()">保存して続ける</button>
+  </div>
+
+  <!-- 管理画面 -->
+  <div id="main-view" class="hidden">
+    <div class="card">
+      <h2>📋 現在の配信先</h2>
+      <div id="recipient-list"><p class="empty-msg">読み込み中...</p></div>
+    </div>
+    <div class="card">
+      <h2>➕ 配信先を追加</h2>
+      <div class="add-row">
+        <input type="email" id="new-email" placeholder="example@gmail.com">
+        <button class="btn btn-primary" style="width:auto" onclick="addRecipient()">追加</button>
+      </div>
+    </div>
+    <a class="logout-link" onclick="logout()">トークンを削除してログアウト</a>
+  </div>
+</div>
+
+<script>
+const REPO  = "makotonozawa1-bit/mmsc-news";
+const FILE  = "recipients.json";
+const API   = `https://api.github.com/repos/${REPO}/contents/${FILE}`;
+
+function getToken() { return localStorage.getItem("mmsc_pat") || ""; }
+
+function showStatus(msg, type) {
+  const el = document.getElementById("status");
+  el.textContent = msg;
+  el.className = "status " + type;
+  if (type === "ok") setTimeout(() => el.className = "status", 3000);
+}
+
+async function ghApi(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`GitHub API エラー: ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : {};
+}
+
+async function loadRecipients() {
+  try {
+    const data = await ghApi("GET", API);
+    const json = JSON.parse(atob(data.content.replace(/\n/g, "")));
+    return { recipients: json.recipients, sha: data.sha };
+  } catch (e) {
+    throw new Error("配信先の読み込みに失敗しました: " + e.message);
+  }
+}
+
+async function saveRecipients(recipients, sha) {
+  const content = btoa(unescape(encodeURIComponent(
+    JSON.stringify({ recipients }, null, 2) + "\n"
+  )));
+  await ghApi("PUT", API, {
+    message: "配信先を更新",
+    content,
+    sha,
+  });
+}
+
+async function renderList() {
+  showStatus("読み込み中...", "loading");
+  try {
+    const { recipients } = await loadRecipients();
+    const el = document.getElementById("recipient-list");
+    if (recipients.length === 0) {
+      el.innerHTML = '<p class="empty-msg">配信先が登録されていません</p>';
+    } else {
+      el.innerHTML = recipients.map((r, i) => `
+        <div class="recipient-item">
+          <span class="recipient-email">${r}</span>
+          <button class="btn-danger" onclick="removeRecipient(${i})" title="削除">✕</button>
+        </div>`).join("");
+    }
+    document.getElementById("status").className = "status";
+  } catch (e) {
+    showStatus(e.message, "err");
+  }
+}
+
+async function addRecipient() {
+  const input = document.getElementById("new-email");
+  const email = input.value.trim();
+  if (!email || !email.includes("@")) {
+    showStatus("正しいメールアドレスを入力してください", "err"); return;
+  }
+  showStatus("追加中...", "loading");
+  try {
+    const { recipients, sha } = await loadRecipients();
+    if (recipients.includes(email)) {
+      showStatus("すでに登録されています", "err"); return;
+    }
+    await saveRecipients([...recipients, email], sha);
+    input.value = "";
+    showStatus(`${email} を追加しました`, "ok");
+    await renderList();
+  } catch (e) {
+    showStatus("追加に失敗しました: " + e.message, "err");
+  }
+}
+
+async function removeRecipient(index) {
+  if (!confirm("この配信先を削除しますか？")) return;
+  showStatus("削除中...", "loading");
+  try {
+    const { recipients, sha } = await loadRecipients();
+    const removed = recipients[index];
+    await saveRecipients(recipients.filter((_, i) => i !== index), sha);
+    showStatus(`${removed} を削除しました`, "ok");
+    await renderList();
+  } catch (e) {
+    showStatus("削除に失敗しました: " + e.message, "err");
+  }
+}
+
+function saveToken() {
+  const pat = document.getElementById("pat-input").value.trim();
+  if (!pat.startsWith("ghp_") && !pat.startsWith("github_pat_")) {
+    showStatus("正しいトークンを入力してください（ghp_ または github_pat_ で始まります）", "err");
+    return;
+  }
+  localStorage.setItem("mmsc_pat", pat);
+  document.getElementById("setup-view").classList.add("hidden");
+  document.getElementById("main-view").classList.remove("hidden");
+  renderList();
+}
+
+function logout() {
+  if (!confirm("トークンを削除してログアウトしますか？")) return;
+  localStorage.removeItem("mmsc_pat");
+  location.reload();
+}
+
+// 初期表示
+window.onload = () => {
+  if (getToken()) {
+    document.getElementById("main-view").classList.remove("hidden");
+    renderList();
+  } else {
+    document.getElementById("setup-view").classList.remove("hidden");
+  }
+};
+</script>
+</body>
+</html>
